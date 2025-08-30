@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Digital Kenya Culture Explorer — All 47 Counties (Lightweight)</title>
+<meta name="description" content="Interactive Kenya cultural explorer — 47 counties. Search, gallery links, proverbs rotation, random facts. Ready for Cultural Day." />
+<style>
+  /* ---------- Base & Theme (African-inspired palette) ---------- */
+  :root{
+    --red:#b71c1c;   /* Maasai red */
+    --gold:#f9a825;  /* warm gold */
+    --green:#1b5e20; /* land */
+    --black:#212121;
+    --muted:#f4f6f8;
+    --glass-bg: rgba(255,255,255,0.62);
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{
+    margin:0;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    background: linear-gradient(180deg,#fffaf0,#f7fbff 40%);
+    color:var(--black);
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+    line-height:1.45;
+    padding-bottom:40px;
+  }
+
+  /* ---------- Header ---------- */
+  header{
+    background: linear-gradient(90deg,var(--red), #ef6c00);
+    color:white;
+    padding:18px 16px;
+    display:flex;
+    gap:14px;
+    align-items:center;
+    box-shadow: 0 6px 20px rgba(11,22,39,0.12);
+  }
+  header .logo{
+    width:56px;height:56px;border-radius:10px;background:rgba(255,255,255,.12);
+    display:flex;align-items:center;justify-content:center;font-size:26px;
+  }
+  header h1{margin:0;font-size:1.15rem;letter-spacing:.3px}
+  header p{margin:0;opacity:.95;font-size:.9rem}
+
+  /* ---------- Layout ---------- */
+  main{max-width:1180px;margin:20px auto;padding:12px}
+  .grid{display:grid;grid-template-columns: 1fr 380px; gap:18px; align-items:start}
+  @media (max-width:980px){ .grid{grid-template-columns:1fr} header{flex-direction:column; align-items:flex-start} }
+
+  /* ---------- Map Card ---------- */
+  .card{background:var(--glass-bg);backdrop-filter: blur(6px); border-radius:14px;padding:14px;border:1px solid rgba(11,22,39,0.06)}
+  .map-wrap{text-align:center}
+  .map-img:hover{transform:translateY(-4px);box-shadow:0 14px 30px rgba(11,22,39,0.12)}
+  .map-img{width:20%;border-radius:10px;border:2px solid rgba(0,0,0,0.06);cursor:pointer;transition:transform .18s ease, box-shadow .18s ease}
+
+  /* ---------- Controls ---------- */
+  .controls h3{margin:.2rem 0 .6rem 0}
+  .search, select{width:100%;padding:10px 12px;border-radius:10px;border:1px solid #e0e6ee;font-size:1rem}
+  .buttons{display:flex;gap:10px;margin-top:10px}
+  .btn{flex:1;padding:10px 12px;border-radius:10px;border:0;font-weight:700;cursor:pointer}
+  .btn-primary{background:var(--green);color:white}
+  .btn-accent{background:var(--gold);color:#111}
+  .btn-ghost{background:transparent;border:1px solid #ddd}
+
+  /* ---------- Info display ---------- */
+  .info {margin-top:12px;padding:12px;border-radius:10px;background:linear-gradient(180deg,#fff,#fffef6);border:1px solid #faecc6;box-shadow:0 6px 20px rgba(14,22,39,.04)}
+  .info h2{margin:.2rem 0 .6rem 0}
+  .badges{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0}
+  .badge{padding:6px 10px;border-radius:999px;background:#fff;border:1px solid #eee;font-weight:700;font-size:.85rem}
+
+  /* ---------- Gallery & media ---------- */
+  .media-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-top:12px}
+  .thumb{background:white;border-radius:10px;padding:8px;border:1px solid #eee;display:flex;flex-direction:column;gap:8px;align-items:center;justify-content:center;min-height:140px; text-align:center}
+  .thumb img{max-width:130%;height:130px;object-fit:cover;border-radius:10px;border:1px solid #f0f0f0}
+  .link-btn{display:inline-block;padding:8px 10px;border-radius:8px;background:var(--red);color:white;text-decoration:none;font-weight:700}
+  .link-muted{display:inline-block;padding:8px 10px;border-radius:8px;background:#f3f4f6;color:#222;text-decoration:none;font-weight:600;border:1px solid #e5e7eb}
+
+  /* ---------- Proverbs rotator ---------- */
+  .proverb {margin-top:18px;padding:12px;border-radius:10px;background:linear-gradient(180deg,#fff,#f8fff4);border:1px solid #e7f5e8}
+  .proverb p{margin:0;font-size:1rem;font-weight:600; color:#2b2b2b}
+
+  /* ---------- Animations ---------- */
+  .fadein {animation:fadeIn .28s ease both}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  /* ---------- Footer ---------- */
+  footer{text-align:center;margin-top:18px;color:#444;font-size:.95rem}
+  small.hint{display:block;color:#666;margin-top:6px}
+
+  /* ---------- Utilities ---------- */
+  .muted{color:#666;font-size:.95rem}
+  .center{display:flex;align-items:center;gap:10px}
+
+
+  /* ---------- Fullscreen Zoom ---------- */
+#overlay {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.8);
+  display:none;
+  justify-content:center;
+  align-items:center;
+  z-index:1000;
+}
+#overlay.active { display:flex; }
+#overlay img {
+  max-width:90%;
+  max-height:90%;
+  border-radius:12px;
+  box-shadow:0 0 20px rgba(0,0,0,0.8);
+}
+
+
+main {
+  max-width: 1180px;
+  margin: 20px auto;
+  padding: 12px;
+  overflow-x: auto; /* horizontal scroll if too small */
+}
+
+
+
+
+
+
+</style>
+</head>
+<body>
+
+    <div id="overlay"></div>
+
+
+<header>
+  <div class="logo">
+    <img src="kenya.jpg" width="100%" height="100%">
+  </div>
+  <div>
+    <h1>Digital Kenya Culture Explorer</h1>
+    <p>47 Counties — Tribes • Food • Attire • Dances • images</p>
+  </div>
+</header>
+
+<main>
+  <div class="grid">
+   
+
+    <!-- RIGHT: Controls & details -->
+    <aside class="card fadein" aria-label="Controls and county details">
+      <div>
+        <h3>Find a County</h3>
+        <input id="searchBox" class="search" type="search" placeholder="Type county name (e.g., Kisumu) and press Enter">
+        <select id="countySelect" style="margin-top:8px" aria-label="County list">
+          <option value="">-- Select county --</option>
+        </select>
+
+        <div class="buttons">
+          <button id="showBtn" class="btn btn-primary">Show</button>
+          <button id="randomBtn" class="btn btn-accent">Random Fact</button>
+        </div>
+
+        <div class="info" id="infoBox" style="margin-top:12px">
+          <h2 id="countyTitle">Welcome — Nairobi (default)</h2>
+          <div class="badges">
+            <div class="badge">🎶 Dance</div>
+            <div class="badge">🍲 Food</div>
+            <div class="badge">👗 Attire</div>
+          </div>
+          <div id="countyText" class="muted">Choose a county to view cultural highlights: main tribes, famous foods, traditional attire and a dance/music link.</div>
+          <div style="margin-top:10px;font-size:.95rem">
+            <a id="videoLink" class="link-muted" href="#" target="_blank" rel="noopener"></a>
+          </div>
+        </div>
+
+       
+      </div>
+    </aside>
+
+    <div class="proverb" style="margin-top:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>Proverb</strong>
+          <small class="muted">New proverb in 10s</small>
+        </div>
+        <p id="proverbText" style="margin-top:8px">Asiyefunzwa na mamaye hufunzwa na ulimwengu. — Whoever is not taught by their mother will be taught by the world.</p>
+      </div>
+    </section>
+  </div>
+
+     <!-- LEFT: Map & gallery -->
+    <section class="card map-wrap fadein" aria-label="Map and gallery">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+       
+      </div>
+
+      <img id="kenyaMap" class="map-img" src=""  >
+
+      <div id="mainGallery" class="media-grid" aria-live="polite" style="margin-top:12px">
+        <!-- Thumbnails injected here -->
+      </div>
+
+      
+
+  <footer>
+    <div>Created for Cultural Day by the Computer students of M.U.S.T</div>
+    <small class="hint">Images & video links are remote (keeps file lightweight). See bottom comments for offline instructions.</small>
+  </footer>
+</main>
+
+<script>
+/* ------------------------------------------------------------
+   County data: 47 counties
+   Fields: tribe, food, attire, dance, images[] (URLs), video (youtube search or example link)
+   NOTE: images & videos are linked (lightweight). Replace with local paths if you want offline.
+   ------------------------------------------------------------ */
+const countyData = {
+  "Mombasa": {
+    tribe:"Swahili, Mijikenda, Kamba, Arabs",
+    food:"Pilau, Biryani, Kaima, coconut seafoods",
+    attire:"Kanzu, Buibui, Kanga, Kitenge",
+    dance:"Taarab, Chakacha",
+    images:["m1.jpg","m2.jpg"],
+ 
+  },
+  "Kwale": {
+    tribe:"Digo, Duruma (Mijikenda)",
+    food:"Coconut & fish dishes, cassava",
+    attire:"Kanga, Kitenge, Mijikenda regalia",
+    dance:"Giriama dances",
+    images:["kwale (3).jpg","kwale (2).jpg","kwale (3).jpg","kwale(4).jpg"],
+   
+  },
+  "Kilifi": {
+    tribe:"Giriama, Swahili, Bajuni",
+    food:"Seafood, coconut-based dishes",
+    attire:"Kanga, Kitenge",
+    dance:"Coastal traditional dances",
+    images:["kl(1).jpg","kl(2).jpg","kl(3).jpg","kl(4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kilifi+coastal+dance"
+  },
+  "Tana River": {
+    tribe:"Pokomo, Orma, Bajuni",
+    food:"Fish, maize, coconut",
+    attire:"Riverine and coastal wear",
+    dance:"Riverine ceremonies",
+    images:["tana (1).jpg","tana (2).jpg","tana (3).jpg","tana (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Tana+River+culture+dance"
+  },
+  "Lamu": {
+    tribe:"Swahili, Bajuni",
+    food:"Biryani, coconut seafoods",
+    attire:"Buibui, kanzu, kofia",
+    dance:"Taarab, Swahili dances",
+    images:["lamu (1).jpg","lamu (2).jpg","lamu (3).jpg","lamu (4).jpg"],
+    video:"https://www.youtube.com/results?search_query=Lamu+taarab+dance"
+  },
+  "Taita-Taveta": {
+    tribe:"Taita, Taveta, Maasai",
+    food:"Meat, ugali, local staples",
+    attire:"Highland & Maasai shuka",
+    dance:"Taita & Maasai dances",
+    images:["taita (1).jpg","taita (2).jpg","taita (3).jpg","taita (4).jpg","taita (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Taita+traditional+dance"
+  },
+  "Garissa": {
+    tribe:"Somali, Oromo",
+    food:"Canjeero, camel milk, rice dishes",
+    attire:"Somali traditional dress, jilbab",
+    dance:"Somali cultural dances",
+    images:["gari (1).jpg","gari (2).jpg","gari (3).jpg","gari (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Garissa+somali+dance"
+  },
+  "Wajir": {
+    tribe:"Somali",
+    food:"Camel milk dishes, rice",
+    attire:"Somali dress",
+    dance:"Somali dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/9/95/Wajir_town.jpg"],
+    video:"https://www.youtube.com/results?search_query=Wajir+culture+dance"
+  },
+  "Mandera": {
+    tribe:"Somali",
+    food:"Camel & rice dishes",
+    attire:"Somali attire",
+    dance:"Somali dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/a/ab/Mandera_town.jpg"],
+    video:"https://www.youtube.com/results?search_query=Mandera+somali+dance"
+  },
+  "Marsabit": {
+    tribe:"Borana, Rendille, Gabra",
+    food:"Camel milk, meat, sorghum",
+    attire:"Beaded pastoralist dress",
+    dance:"Pastoralist dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/1/12/Marsabit_landscape.jpg"],
+    video:"https://www.youtube.com/results?search_query=Marsabit+tribal+dance"
+  },
+
+
+
+  "Nairobi": {
+    tribe:"Its filled with a mixture of all the different tribes of Kenya",
+    food:"Ugali (maize meal), Nyama Choma (grilled meat),rice, Githeri (maize and beans),and Chapati (flatbread)",
+    attire:"Maasai robes with vibrant beadwork, Kitenge suits blending African prints with modern tailoring, sophisticated Western styles like the little black dress, and essential lightweight fabrics like cotton and linen for the Nairobi heat.",
+    dance:"All types of dances",
+    images:["nai (1).jpg","nai (2).jpg","nai (3).jpg","nai (4).jpg","nai (5).jpg","nai (6).jpg","nai (7).jpg",],
+  },
+  "Isiolo": {
+    tribe:"Borana, Somali, Turkana, Samburu",
+    food:"Meat, milk, maize",
+    attire:"Pastoral robes, beading",
+    dance:"Samburu/Borana dances",
+    images:["isiolo (1).jpg","isiolo (2).jpg","isiolo (3).jpg","isiolo (4).jpg","isiolo (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Isiolo+culture+dance"
+  },
+  "Meru": {
+    tribe:"Meru (Ameru)",
+    food:"Mukimo, irio, ugali",
+    attire:"Meru regalia",
+    dance:"Mwomboko",
+    images:["meru (1).jpg","meru (2).jpg","meru (3).jpg","meru (4).jpg","meru (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Meru+mwomboko+dance"
+  },
+  "Tharaka-Nithi": {
+    tribe:"Tharaka, Chuka",
+    food:"Mukimo, traditional vegetables",
+    attire:"Highland tribal wear",
+    dance:"Local highland dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/0/0d/Tharaka_Throne.jpg"],
+    video:"https://www.youtube.com/results?search_query=Tharaka+traditional+dance"
+  },
+  "Embu": {
+    tribe:"Embu",
+    food:"Mukimo, githeri",
+    attire:"Embu traditional wear",
+    dance:"Kîîndî and other local dances",
+    images:["embu (1).jpg","embu (2).jpg","embu (3).jpg","embu (4).jpg","embu (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Embu+traditional+dance"
+  },
+  "Kitui": {
+    tribe:"Kamba",
+    food:"Muthokoi, ugali",
+    attire:"Kamba beadwork",
+    dance:"Kilumi",
+    images:["kitui (1).jpg","kitui (2).jpg","kitui (3).jpg","kitui (4).jpg","kitui (5).jpg","kitui (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kitui+kamba+dance"
+  },
+  "Machakos": {
+    tribe:"Kamba",
+    food:"Mutura, roasted meats, ugali",
+    attire:"Kamba beads",
+    dance:"Kamba dances & muthithu",
+    images:["mac (1).jpg","mac (2).jpg","mac (3).jpg","mac (4).jpg","mac (5).jpg","mac (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Machakos+kamba+dance"
+  },
+  "Makueni": {
+    tribe:"Kamba",
+    food:"Traditional vegetables, ugali",
+    attire:"Kamba beadwork",
+    dance:"Local Kamba dances",
+    images:["mak (1).jpg","mak (2).jpg","mak (3).jpg","mak (4).jpg","mak (5).jpg","mak (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Makueni+kamba+dance"
+  },
+  "Nyandarua": {
+    tribe:"Kikuyu",
+    food:"Githeri, potatoes, nyama choma",
+    attire:"Kikuyu wear",
+    dance:"Kikuyu dances & mũgithi",
+    images:["https://upload.wikimedia.org/wikipedia/commons/5/59/Nyandarua_landscape.jpg"],
+    video:"https://www.youtube.com/results?search_query=Nyandarua+kikuyu+dance"
+  },
+  "Nyeri": {
+    tribe:"Kikuyu",
+    food:"Mukimo, githeri, tea-farm foods",
+    attire:"Kikuyu clothes",
+    dance:"Kikuyu traditional dances",
+    images:["nyeri (1).jpg","nyeri (2).jpg","nyeri (3).jpg","nyeri (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Nyeri+kikuyu+dance"
+  },
+  "Kirinyaga": {
+    tribe:"Kikuyu",
+    food:"Mukimo, tea-related foods",
+    attire:"Kikuyu regalia",
+    dance:"Kikuyu dances",
+    images:["kiri (1).jpg","kiri (2).jpg","kiri (3).jpg","kiri (4).jpg","kiri (5).jpg","kiri (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kirinyaga+kikuyu+dance"
+  },
+  "Murang'a": {
+    tribe:"Kikuyu",
+    food:"Githeri, mukimo",
+    attire:"Kikuyu traditional wear",
+    dance:"Mũgithi (modern Kikuyu music/dance)",
+    images:["https://upload.wikimedia.org/wikipedia/commons/7/74/Murang%27a_fields.jpg"],
+    video:"https://www.youtube.com/results?search_query=Muranga+mugithi"
+  },
+  "Kiambu": {
+    tribe:"Kikuyu",
+    food:"Tea, githeri, nyama choma",
+    attire:"Kikuyu clothes",
+    dance:"Mugithi & Kikuyu dances",
+    images:["kiambu (1).jpg","kiambu (2).jpg","kiambu (3).jpg","kiambu (4).jpg","kiambu (5).jpg","kiambu (6).jpg","kiambu (7).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kiambu+kikuyu+dance"
+  },
+  "Turkana": {
+    tribe:"Turkana",
+    food:"Milk, roasted meat, ikanji",
+    attire:"Beaded necklaces, hides",
+    dance:"Turkana dances and warrior songs",
+    images:["https://upload.wikimedia.org/wikipedia/commons/5/5c/Turkana_people.jpg"],
+    video:"https://www.youtube.com/results?search_query=Turkana+dance"
+  },
+  "West Pokot": {
+    tribe:"Pokot",
+    food:"Milk, meat, sorghum",
+    attire:"Pastoral clothing & beadwork",
+    dance:"Pokot dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/6/6b/West_Pokot.jpg"],
+    video:"https://www.youtube.com/results?search_query=West+Pokot+dance"
+  },
+  "Samburu": {
+    tribe:"Samburu",
+    food:"Milk, meat, ugali",
+    attire:"Beaded necklaces, red shukas",
+    dance:"Samburu jumping dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/6/68/Samburu_warriors.jpg"],
+    video:"https://www.youtube.com/results?search_query=Samburu+dance"
+  },
+  "Trans-Nzoia": {
+    tribe:"Kalenjin, Luhya, Kikuyu",
+    food:"Maize foods, ugali, farm produce",
+    attire:"Highland attire",
+    dance:"Kalenjin & Luhya dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/7/7f/Trans_Nzoia.jpg"],
+    video:"https://www.youtube.com/results?search_query=Trans-Nzoia+dance"
+  },
+  "Uasin Gishu": {
+    tribe:"Kalenjin, Kikuyu",
+    food:"Irio, ugali, nyama choma",
+    attire:"Highland attire",
+    dance:"Kalenjin dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/9/92/UasinGishu_plains.jpg"],
+    video:"https://www.youtube.com/results?search_query=Uasin+Gishu+kalenjin+dance"
+  },
+  "Elgeyo-Marakwet": {
+    tribe:"Kalenjin",
+    food:"Maize and meat dishes",
+    attire:"Kalenjin beaded ornaments",
+    dance:"Kalenjin dances",
+    images:["elge (1).jpg","elge (2).jpg","elge (3).jpg","elge (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Elgeyo+Marakwet+dance"
+  },
+  "Nandi": {
+    tribe:"Kalenjin",
+    food:"Milk, ugali, greens",
+    attire:"Kalenjin regalia",
+    dance:"Kalenjin dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/9/94/Nandi_hills.jpg"],
+    video:"https://www.youtube.com/results?search_query=Nandi+dance"
+  },
+  "Baringo": {
+    tribe:"Tugen, Pokot, Ilchamus",
+    food:"Fish (lake Baringo), maize, meat",
+    attire:"Pastoral & fishing community attire",
+    dance:"Local dances",
+    images:["baringo (1).jpg","baringo (2).jpg","baringo (3).jpg","baringo (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Baringo+culture+dance"
+  },
+  "Laikipia": {
+    tribe:"Maasai, Kikuyu, Meru",
+    food:"Meat, ugali, farm produce",
+    attire:"Maasai shuka & highland attire",
+    dance:"Maasai Adumu in some areas",
+    images:["lai (1).jpg","lai (2).jpg","lai (3).jpg","lai (4).jpg","lai (5).jpg","lai (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Laikipia+maasai+dance"
+  },
+  "Nakuru": {
+    tribe:"Kikuyu, Kalenjin, Luhya",
+    food:"Nyama choma, ugali, farm foods",
+    attire:"Kikuyu & Kalenjin attire",
+    dance:"Varied festival dances",
+    images:["nak (1).jpg","nak (2).jpg","nak (3).jpg","nak (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Nakuru+cultural+dance"
+  },
+  "Narok": {
+    tribe:"Maasai",
+    food:"Milk, meat, ugali",
+    attire:"Red shuka, beadwork",
+    dance:"Adumu (Maasai jumping dance)",
+    images:["https://upload.wikimedia.org/wikipedia/commons/7/79/Maasai_people.jpg"],
+    video:"https://www.youtube.com/results?search_query=Maasai+adumu"
+  },
+  "Kajiado": {
+    tribe:"Maasai",
+    food:"Pastoral diet, meat, milk",
+    attire:"Shuka, beadwork",
+    dance:"Maasai songs and dances",
+    images:["kaji (1).jpg","kaji (2).jpg","kaji (3).jpg","kaji (4).jpg","kaji (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kajiado+maasai+dance"
+  },
+  "Kericho": {
+    tribe:"Kipsigis (Kalenjin)",
+    food:"Tea-farm foods, ugali, nyama choma",
+    attire:"Highland tribal dress",
+    dance:"Kipsigis dances",
+    images:["keri (1).jpg","keri (2).jpg","keri (3).jpg","keri (4).jpg","keri (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kericho+culture+dance"
+  },
+  "Bomet": {
+    tribe:"Kipsigis (Kalenjin)",
+    food:"Milk, meat, ugali",
+    attire:"Kipsigis regalia",
+    dance:"Kipsigis dances",
+    images:["bomet (1).jpg","bomet (2).jpg","bomet (3).jpg","bomet (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Bomet+kipsigis+dance"
+  },
+  "Kakamega": {
+    tribe:"Luhya",
+    food:"Ingoho (chicken), ugali, cassava",
+    attire:"Luhya regalia",
+    dance:"Isukuti (drum dance)",
+    images:["kaka (1).jpg","kaka (2).jpg","kaka (3).jpg","kaka (4).jpg","kaka (5).jpg","kaka (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Isukuti+dance"
+  },
+  "Vihiga": {
+    tribe:"Luhya",
+    food:"Local staples, ugali",
+    attire:"Luhya clothes",
+    dance:"Isukuti & local dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/6/6f/Vihiga_countryside.jpg"],
+    video:"https://www.youtube.com/results?search_query=Vihiga+culture+dance"
+  },
+  "Bungoma": {
+    tribe:"Luhya (Bukusu)",
+    food:"Cassava, ugali, stews",
+    attire:"Bukusu regalia",
+    dance:"Bukusu dances",
+    images:["bungoma (4).jpg","bungoma (1).jpg","bungoma (2).jpg","bungoma (3).jpg",],
+    video:"https://www.youtube.com/results?search_query=Bungoma+bukusu+dance"
+  },
+  "Busia": {
+    tribe:"Luhya, Teso, Luo",
+    food:"Fish, ugali",
+    attire:"Kitenge, local wear",
+    dance:"Luhya & Teso dances",
+    images:["busia (1).jpg","busia (2).jpg","busia (3).jpg","busia (4).jpg","busia (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Busia+traditional+dance"
+  },
+  "Siaya": {
+    tribe:"Luo",
+    food:"Fish (tilapia), ugali",
+    attire:"Luo clothing, kitenge",
+    dance:"Ohangla",
+    images:["https://upload.wikimedia.org/wikipedia/commons/4/4f/Siaya_rural.jpg"],
+    video:"https://www.youtube.com/results?search_query=Ohangla+music"
+  },
+  "Kisumu": {
+    tribe:"Luo",
+    food:"Tilapia, ugali, fish dishes",
+    attire:"Luo dress, kitenge",
+    dance:"Ohangla",
+    images:["kisumu (1).jpg","kisumu (2).jpg","kisumu (3).jpg","kisumu (4).jpg","kisumu (5).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kisumu+ohangla+dance"
+  },
+  "Homa Bay": {
+    tribe:"Luo",
+    food:"Fish, ugali",
+    attire:"Luo clothes",
+    dance:"Ohangla",
+    images:["homa (1).jpg","homa (2).jpg","homa (3).jpg","homa (4).jpg","homa (5).jpg","homa (6).jpg",],
+    video:"https://www.youtube.com/results?search_query=Homa+Bay+ohangla"
+  },
+  "Migori": {
+    tribe:"Luo, Kuria",
+    food:"Fish, ugali, meat",
+    attire:"Kitenge, Luo dress",
+    dance:"Ohangla and Kuria dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/5/59/Migori_town.jpg"],
+    video:"https://www.youtube.com/results?search_query=Migori+cultural+dance"
+  },
+  "Kisii": {
+    tribe:"Gusii (Kisii)",
+    food:"Matoke, starchy staples",
+    attire:"Gusii clothing, kanga/kitenge",
+    dance:"Gusii dances",
+    images:["kisii (1).jpg","kisii (2).jpg","kisii (3).jpg","kisii (4).jpg",],
+    video:"https://www.youtube.com/results?search_query=Kisii+gusii+dance"
+  },
+  "Nyamira": {
+    tribe:"Kisii",
+    food:"Local highland staples",
+    attire:"Traditional highland wear",
+    dance:"Gusii dances",
+    images:["https://upload.wikimedia.org/wikipedia/commons/7/72/Nyamira_area.jpg"],
+    video:"https://www.youtube.com/results?search_query=Nyamira+gusii+dance"
+  }
+};
+
+/* ------------------------------------------------------------
+   UI wiring: populate list, search, show, random, proverbs rotations
+   ------------------------------------------------------------ */
+
+// get sorted county names
+const countyNames = Object.keys(countyData).sort((a,b)=>a.localeCompare(b));
+const select = document.getElementById('countySelect');
+countyNames.forEach(c=>{
+  const opt = document.createElement('option'); opt.value=c; opt.textContent=c; select.appendChild(opt);
+});
+
+// elements
+const showBtn = document.getElementById('showBtn');
+const randomBtn = document.getElementById('randomBtn');
+const searchBox = document.getElementById('searchBox');
+const infoBox = document.getElementById('infoBox');
+const countyTitle = document.getElementById('countyTitle');
+const countyText = document.getElementById('countyText');
+const videoLink = document.getElementById('videoLink');
+const mainGallery = document.getElementById('mainGallery');
+const proverbText = document.getElementById('proverbText');
+
+// proverbs list (rotator)
+const proverbs = [
+  "Asiyefunzwa na mamaye hufunzwa na ulimwengu. — Whoever is not taught by their mother will be taught by the world.",
+  "Haraka haraka haina baraka. — Hurry hurry has no blessings.",
+  "Kidole kimoja hakivunji chawa. — One finger cannot kill a louse.",
+  "Umoja ni nguvu, utengano ni udhaifu. — Unity is strength, division is weakness.",
+  "Maji ukiyavulia nguo hayatacha kuwa maji. — Water poured on clothes remains water (things don't change easily).",
+  "Mti haupimwi kwa taji. — A tree is not judged by its crown (don’t judge by appearances).",
+"Hekima ni kama mti wa mbuyu, hakuna mtu mmoja anayeweza kuukumbatia.",  
+"Wisdom is like a baobab tree; no one person can embrace it. ",
+"Mtoto asiyekumbatiwa na kijiji, atakichoma ili ahisi joto lake.",
+"A child who is not embraced by the village will burn it down to feel its warmth. ",
+"Mwenye hekima husema mara moja, mpumbavu hurudia mara nyingi."  ,
+"The wise speak once, but fools repeat many times. ",
+"Aliyekusikiliza hakika atakukumbuka.",
+"The one who listens to you will surely remember you. ",
+"Kila mzee akifa, ni kama maktaba imeungua."  ,
+"When an old man dies, it is like a library has burned down. ",
+
+
+
+
+
+
+
+
+
+];
+let provIdx = 0;
+function rotateProverb(){
+  provIdx = (provIdx + 1) % proverbs.length;
+  const p = proverbs[provIdx];
+  proverbText.style.opacity = 0;
+  setTimeout(()=>{ proverbText.textContent = p; proverbText.style.opacity = 1; }, 300);
+}
+setInterval(rotateProverb, 10000); // every 10s
+
+// helper: render county
+function showCounty(county){
+  if(!county || !countyData[county]) {
+    alert("County not found in data.");
+    return;
+  }
+  const d = countyData[county];
+  countyTitle.textContent = county + " County";
+  countyText.innerHTML = `<div><strong>Main tribe(s):</strong> ${d.tribe}</div>
+                         <div><strong>Famous food:</strong> ${d.food}</div>
+                         <div><strong>Traditional attire:</strong> ${d.attire}</div>
+                         <div><strong>Dance/music:</strong> ${d.dance}</div>`;
+
+  // Video link (opens search or provided link)
+  if(d.video){
+    videoLink.href = d.video;
+    videoLink.style.display = "inline-block";
+  } else {
+    videoLink.href = "#";
+    videoLink.style.display = "inline-block";
+  }
+
+  // gallery thumbnails (images open in new tab)
+  mainGallery.innerHTML = "";
+  if(d.images && d.images.length){
+    d.images.forEach((src, i)=>{
+      const t = document.createElement('div');
+      t.className = 'thumb';
+      t.innerHTML = `
+        <img src="${src}" alt="${county} image ${i+1}">
+        <div style="font-weight:700">${county}</div>
+        <div style="display:flex;gap:8px">
+        </div>
+      `;
+      mainGallery.appendChild(t);
+    });
+  } else {
+    const t = document.createElement('div'); t.className='thumb';
+    t.innerHTML = `<div style="font-weight:700">No images available</div>`;
+    mainGallery.appendChild(t);
+  }
+
+  // small fade-in effect
+  infoBox.classList.add('fadein');
+  setTimeout(()=>infoBox.classList.remove('fadein'), 500);
+}
+
+// populate default county (Nairobi if available else first)
+const defaultCounty = countyNames.includes('Nairobi') ? 'Nairobi' : countyNames[0];
+// If Nairobi not in data (we didn't include Nairobi intentionally earlier), show first
+if(countyData[defaultCounty]) showCounty(defaultCounty);
+
+// Show button action: from select or search
+showBtn.addEventListener('click', ()=>{
+  const q = (searchBox.value || select.value || "").trim();
+  if(!q){ alert("Type or pick a county."); return; }
+  const match = countyNames.find(c => c.toLowerCase() === q.toLowerCase());
+  if(match) {
+    select.value = match;
+    showCounty(match);
+  } else {
+    alert("County not found. Try selecting from the list.");
+  }
+});
+
+// enter key searches
+searchBox.addEventListener('keydown', (e)=>{ if(e.key === "Enter") showBtn.click(); });
+
+// Random fact (picks random county + small fact)
+randomBtn.addEventListener('click', ()=>{
+  const rand = countyNames[Math.floor(Math.random()*countyNames.length)];
+  const d = countyData[rand];
+  const fact = `${rand}: Main tribe(s) — ${d.tribe}. Famous food — ${d.food}. Try showing an image and the video link!`;
+  alert(fact);
+  select.value = rand;
+  showCounty(rand);
+});
+
+// map click: prompt for county (case-insensitive)
+document.getElementById('kenyaMap').addEventListener('click', ()=>{
+  if(!t) return;
+  const match = countyNames.find(c => c.toLowerCase() === t.toLowerCase());
+  if(match){ select.value = match; showCounty(match); }
+  else alert("County not found. Pick from the dropdown.");
+});
+
+/* Accessibility: announce load */
+console.log("Digital Kenya Culture Explorer loaded. Use search, dropdown, or click the map to explore counties.");
+
+/* ------------------------------------------------------------
+   Important offline note (short):
+   - This file keeps media as remote links (lightweight).
+   - To make fully offline: download image files into a folder 'media' and replace URLs in countyData.images with './media/filename.jpg'.
+   - For videos use local mp4 files and update video links to local file paths, then use <video controls src="./media/video.mp4"> markup (requires editing HTML).
+   ------------------------------------------------------------ */
+
+   /* ---------- Image Zoom Feature ---------- */
+document.body.addEventListener("click", function(e) {
+  if (e.target.tagName === "IMG" && !e.target.closest("#overlay")) {
+    const overlay = document.getElementById("overlay");
+    overlay.innerHTML = ""; // clear previous content
+    const clone = e.target.cloneNode();
+    overlay.appendChild(clone);
+    overlay.classList.add("active");
+  }
+}); 
+
+document.getElementById("overlay").addEventListener("click", () => {
+  document.getElementById("overlay").classList.remove("active");
+});
+
+</script>
+
+<!--
+Offline instructions (more detailed):
+1. Create folder cultural-day-offline/
+2. Save this file inside (cultural-day.html).
+3. Create subfolder cultural-day-offline/media/
+4. For each county image URL used above, download image to media/ with a clear filename (e.g., mombasa1.jpg).
+5. Edit the countyData block: replace the remote URL with "media/mombasa1.jpg".
+6. For videos: either keep remote YouTube links (requires internet) or download short mp4 clips and set countyData[...].video = "media/narok.mp4" then change the UI to use <a> to open or <video> element.
+7. Open cultural-day.html in the browser offline — images load locally.
+-->
+</body>
+</html>
